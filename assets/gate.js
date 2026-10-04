@@ -6,7 +6,6 @@
   const input = document.getElementById('gate-pin');
   const message = document.getElementById('gate-message');
   const untilKey = 'travelz-unlocked-until';
-  const dataKeyKey = 'travelz-data-key';
 
   const hexToBytes = (hex) => {
     const out = new Uint8Array(hex.length / 2);
@@ -34,7 +33,6 @@
 
   function lock() {
     localStorage.removeItem(untilKey);
-    localStorage.removeItem(dataKeyKey);
     app.hidden = true;
     gate.hidden = false;
     if (input) {
@@ -43,13 +41,12 @@
     }
   }
 
-  const configured = cfg.enabled && cfg.authSaltHex && cfg.authVerifierHex && cfg.dataSaltHex;
+  const configured = cfg.enabled && cfg.authSaltHex && cfg.authVerifierHex;
   if (!configured) {
     showApp();
   } else {
     const unlockedUntil = Number(localStorage.getItem(untilKey) || 0);
-    const storedDataKey = localStorage.getItem(dataKeyKey);
-    if (Date.now() < unlockedUntil && storedDataKey) showApp();
+    if (Date.now() < unlockedUntil) showApp();
   }
 
   form?.addEventListener('submit', async (event) => {
@@ -61,10 +58,8 @@
     try {
       const verifier = await deriveHex(pin, cfg.authSaltHex);
       if (verifier === cfg.authVerifierHex) {
-        const dataKey = await deriveHex(pin, cfg.dataSaltHex);
         const hours = Number(cfg.rememberHours || 24);
         localStorage.setItem(untilKey, String(Date.now() + hours * 60 * 60 * 1000));
-        localStorage.setItem(dataKeyKey, dataKey);
         input.value = '';
         showApp();
       } else {
