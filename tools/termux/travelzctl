@@ -210,8 +210,14 @@ def sync(public, vault, state):
                 code = "auth_error"
             else:
                 code = "git_error"
+            messages = {
+                "offline": "Network unavailable; the saved trip and documents still work.",
+                "auth_error": f"GitHub authentication failed for {name}; check Termux.",
+                "git_error": f"Git could not fast-forward {name}; inspect that clone in Termux.",
+            }
+            prefix = "The vault was updated. " if results.get("vault") == "updated" else ""
             return {"ok": False, "error": code,
-                    "message": f"Could not update {name}; no merge or reset was performed.",
+                    "message": prefix + messages[code],
                     "repositories": results}
         new = git(repo, "rev-parse", "HEAD")
         if new is None or new.returncode:
