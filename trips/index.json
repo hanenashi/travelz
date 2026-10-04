@@ -1,11 +1,9 @@
 {
   "trips": [
     {
-      "id": "2026-czech",
-      "label": "Czechia 2026",
-      "route": "Sapporo → Taipei → Prague → Pardubice → Vienna → Taipei → Sapporo",
-      "start": "2026-10-06",
-      "end": "2026-10-17",
+      "id": "current",
+      "label": "Current trip",
+      "route": "Trip details are PIN-shielded",
       "href": "trips/2026-czech/"
     }
   ]
