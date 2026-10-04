@@ -1,0 +1,258 @@
+#!/data/data/com.termux/files/usr/bin/python3
+"""Small, bounded local API for the Travelz Android companion.
+
+Install this file in Termux private storage. It never accepts a shell command or
+returns document contents. The private vault remains owned by Termux/Git.
+"""
+
+import argparse
+import datetime as dt
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+
+TRIP_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+DOC_ID = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
+FILE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+MAX_MANIFEST = 64 * 1024
+MAX_DOCUMENTS = 100
+
+
+class TravelzError(Exception):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def reply(payload, success=True):
+    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    return 0 if success else 1
+
+
+def fail(code, message):
+    raise TravelzError(code, message)
+
+
+def paths():
+    home_public = Path.home() / "git/travelz"
+    phone_public = Path("/storage/emulated/0/GIT/travelz")
+    default_public = home_public if home_public.is_dir() else phone_public
+    public = Path(os.environ.get("TRAVELZ_REPO", str(default_public))).expanduser()
+    vault = Path(os.environ.get("TRAVAULT_REPO", str(Path.home() / "git/travault13"))).expanduser()
+    state = Path(os.environ.get("TRAVELZ_STATE", str(Path.home() / ".local/state/travelz/last-sync.json"))).expanduser()
+    return public, vault, state
+
+
+def git(repo, *args, timeout=12, network=False):
+    environment = os.environ.copy()
+    environment["GIT_TERMINAL_PROMPT"] = "0"
+    if network:
+        environment["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes"
+    try:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], capture_output=True, text=True,
+            timeout=timeout, env=environment, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def repo_status(repo):
+    if not repo.is_dir():
+        return {"path": str(repo), "exists": False, "branch": None, "dirty": None}
+    inside = git(repo, "rev-parse", "--is-inside-work-tree")
+    if inside is None or inside.returncode != 0 or inside.stdout.strip() != "true":
+        return {"path": str(repo), "exists": False, "branch": None, "dirty": None}
+    branch = git(repo, "branch", "--show-current")
+    changes = git(repo, "status", "--porcelain", "--untracked-files=normal")
+    if branch is None or changes is None or branch.returncode or changes.returncode:
+        fail("git_error", "Could not inspect a local repository.")
+    return {"path": str(repo), "exists": True, "branch": branch.stdout.strip(),
+            "dirty": bool(changes.stdout.strip())}
+
+
+def read_last_sync(state):
+    try:
+        value = json.loads(state.read_text(encoding="utf-8"))
+        return value.get("time") if isinstance(value.get("time"), str) else None
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def status(public, vault, state):
+    public_state = repo_status(public)
+    vault_state = repo_status(vault)
+    return {"ok": public_state["exists"] and vault_state["exists"],
+            "travelz_repo": public_state, "vault_repo": vault_state,
+            "last_sync": read_last_sync(state)}
+
+
+def current_trip(public):
+    index = public / "trips/index.json"
+    try:
+        data = json.loads(index.read_text(encoding="utf-8"))
+        trips = data["trips"]
+        trip_id = trips[0]["id"]
+    except (OSError, ValueError, KeyError, IndexError, TypeError):
+        fail("trip_unavailable", "The local trip index is missing or invalid.")
+    if not isinstance(trip_id, str) or not TRIP_ID.fullmatch(trip_id):
+        fail("trip_unavailable", "The current trip ID is invalid.")
+    return trip_id
+
+
+def trip(public):
+    trip_id = current_trip(public)
+    try:
+        data = json.loads((public / "trips" / trip_id / "trip.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        fail("trip_unavailable", "The local trip data is missing or invalid.")
+    result = {"ok": True, "id": trip_id}
+    for key in ("title", "route", "start", "end"):
+        value = data.get(key)
+        if not isinstance(value, str) or len(value) > 500:
+            fail("trip_unavailable", "The local trip data has an invalid field.")
+        result[key] = value
+    return result
+
+
+def document_manifest(public, vault):
+    trip_id = current_trip(public)
+    vault_root = vault.resolve()
+    trip_root = (vault_root / "trips" / trip_id).resolve()
+    if not trip_root.is_relative_to(vault_root) or not trip_root.is_dir():
+        fail("vault_unavailable", "The matching private trip folder is missing.")
+    manifest = trip_root / "docs.json"
+    try:
+        if manifest.stat().st_size > MAX_MANIFEST:
+            fail("manifest_invalid", "The document list is too large.")
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        entries = data["documents"]
+    except (OSError, ValueError, KeyError, TypeError):
+        fail("manifest_invalid", "The private document list is missing or invalid.")
+    if not isinstance(entries, list) or len(entries) > MAX_DOCUMENTS:
+        fail("manifest_invalid", "The private document list is invalid.")
+    documents = []
+    seen = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            fail("manifest_invalid", "The private document list has an invalid entry.")
+        doc_id, label, file_name, kind = (entry.get(key) for key in ("id", "label", "file", "type"))
+        if (not isinstance(doc_id, str) or not DOC_ID.fullmatch(doc_id) or doc_id in seen
+                or not isinstance(label, str) or not 1 <= len(label) <= 100
+                or not isinstance(file_name, str) or not FILE_NAME.fullmatch(file_name)
+                or file_name in (".", "..") or kind not in ("pdf", "image")):
+            fail("manifest_invalid", "The private document list has an invalid entry.")
+        seen.add(doc_id)
+        file_path = (trip_root / file_name).resolve()
+        if not file_path.is_relative_to(trip_root):
+            fail("manifest_invalid", "A document path escapes its trip folder.")
+        documents.append({"id": doc_id, "label": label, "type": kind,
+                          "available": file_path.is_file(), "_path": file_path})
+    return trip_id, documents
+
+
+def docs(public, vault):
+    trip_id, documents = document_manifest(public, vault)
+    return {"ok": True, "trip_id": trip_id,
+            "documents": [{key: row[key] for key in ("id", "label", "type", "available")}
+                          for row in documents]}
+
+
+def open_document(public, vault, doc_id):
+    if not DOC_ID.fullmatch(doc_id):
+        fail("invalid_id", "Choose a document from the list.")
+    _, documents = document_manifest(public, vault)
+    match = next((row for row in documents if row["id"] == doc_id), None)
+    if match is None:
+        fail("not_found", "That document is not in the private trip list.")
+    if not match["available"]:
+        fail("file_missing", "That document is missing from the local vault.")
+    opener = shutil.which("termux-open")
+    if opener is None:
+        fail("viewer_unavailable", "Termux cannot find termux-open.")
+    try:
+        result = subprocess.run([opener, str(match["_path"])], capture_output=True,
+                                timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        fail("viewer_error", "The Android viewer did not respond.")
+    if result.returncode:
+        fail("viewer_error", "Could not ask Android to open the document.")
+    return {"ok": True, "id": doc_id, "launched": True}
+
+
+def sync(public, vault, state):
+    before = {"travelz": repo_status(public), "vault": repo_status(vault)}
+    for name, row in before.items():
+        if not row["exists"]:
+            fail("repo_missing", f"The local {name} repository is missing.")
+        if row["dirty"]:
+            fail("dirty", f"The local {name} repository has changes; nothing was pulled.")
+        if not row["branch"]:
+            fail("git_error", f"The local {name} repository has no active branch.")
+    results = {}
+    for name, repo in (("vault", vault), ("travelz", public)):
+        old = git(repo, "rev-parse", "HEAD")
+        pulled = git(repo, "pull", "--ff-only", "--quiet", timeout=60, network=True)
+        if old is None or pulled is None or old.returncode or pulled.returncode:
+            reason = "" if pulled is None else (pulled.stderr + pulled.stdout).lower()
+            if pulled is None or any(word in reason for word in (
+                "could not resolve", "network is unreachable", "connection timed out",
+                "couldn't connect", "failed to connect", "no route to host")):
+                code = "offline"
+            elif any(word in reason for word in (
+                "authentication failed", "permission denied", "publickey", "terminal prompts disabled")):
+                code = "auth_error"
+            else:
+                code = "git_error"
+            return {"ok": False, "error": code,
+                    "message": f"Could not update {name}; no merge or reset was performed.",
+                    "repositories": results}
+        new = git(repo, "rev-parse", "HEAD")
+        if new is None or new.returncode:
+            fail("git_error", "Could not check the updated repository.")
+        results[name] = "unchanged" if old.stdout == new.stdout else "updated"
+    now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    try:
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(json.dumps({"time": now}) + "\n", encoding="utf-8")
+        state.chmod(0o600)
+    except OSError:
+        fail("state_error", "Both repositories updated, but the sync time could not be saved.")
+    return {"ok": True, "repositories": results, "time": now}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Travelz local companion API")
+    parser.add_argument("command", choices=("status", "sync", "trip", "docs", "open"))
+    parser.add_argument("document_id", nargs="?")
+    parser.add_argument("--json", action="store_true", help="Return one JSON object (the default)")
+    args = parser.parse_args(argv)
+    if args.command == "open" and args.document_id is None:
+        parser.error("open needs a document ID")
+    if args.command != "open" and args.document_id is not None:
+        parser.error("only open accepts a document ID")
+    public, vault, state = paths()
+    try:
+        if args.command == "status":
+            result = status(public, vault, state)
+        elif args.command == "sync":
+            result = sync(public, vault, state)
+        elif args.command == "trip":
+            result = trip(public)
+        elif args.command == "docs":
+            result = docs(public, vault)
+        else:
+            result = open_document(public, vault, args.document_id)
+        return reply(result, bool(result["ok"]))
+    except TravelzError as error:
+        return reply({"ok": False, "error": error.code, "message": error.message}, False)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

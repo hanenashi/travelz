@@ -8,6 +8,8 @@ Small static travel hub for GitHub Pages.
 - `trips/<year>-<destination>/` — one frontend and data file per trip
 - `assets/` — shared UI and PIN gate
 - `sw.js` — offline fallback/cache
+- `tools/termux/` — local helper for the Pixel's private Git clones
+- `android/` — native offline document shelf
 - `travault13` — separate private repository for sensitive documents
 
 ## Privacy model
