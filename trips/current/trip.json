@@ -1,0 +1,77 @@
+{
+  "title": "Czechia 2026",
+  "route": "Sapporo → Taipei → Prague → Pardubice → Vienna → Taipei → Sapporo",
+  "start": "2026-10-06",
+  "end": "2026-10-17",
+  "schedule": [
+    {
+      "date": "Oct 6",
+      "title": "Sapporo → Taipei",
+      "note": "China Airlines. Transfer airside at TPE; onward CI67 departs 23:30."
+    },
+    {
+      "date": "Oct 6 · Taipei",
+      "title": "TPE layover",
+      "note": "Arrival about 18:15. Try China Airlines Lounge A; ask for VIP Lounge Usage redemption (5,000 miles). If a 3-hour rule is applied, try again around 20:30."
+    },
+    {
+      "date": "Oct 7",
+      "title": "Prague arrival → Pardubice",
+      "note": "Airport Express to Praha hlavní nádraží, then preferably 1st-class Pendolino / fast train to Pardubice."
+    },
+    {
+      "date": "Oct 15",
+      "title": "Pardubice → Vienna Airport",
+      "note": "Travel to Vienna and overnight at Moxy Vienna Airport."
+    },
+    {
+      "date": "Oct 16",
+      "title": "Vienna → Taipei",
+      "note": "China Airlines departure 11:25."
+    },
+    {
+      "date": "Oct 17",
+      "title": "Taipei → Sapporo",
+      "note": "TPE arrival about 05:30; Sapporo flight departs about 08:35."
+    }
+  ],
+  "money": [
+    {
+      "currency": "CZK",
+      "target": "5,000–7,000 Kč preloaded",
+      "note": "Airport bus, Prague–Pardubice train, eSIMs, coffee/snacks before meeting dad."
+    },
+    {
+      "currency": "EUR",
+      "target": "€100–150",
+      "note": "Return rail / Vienna food and incidentals. Hotel is already paid."
+    },
+    {
+      "currency": "JPY",
+      "target": "Keep the majority here",
+      "note": "Revolut can auto-convert at purchase; Yuucho remains backup."
+    },
+    {
+      "currency": "TWD",
+      "target": "No need to preload",
+      "note": "Use Revolut auto-conversion for Taipei airport snacks if needed."
+    }
+  ],
+  "connectivity": [
+    "Need two Czech prepaid eSIMs with sensible data.",
+    "Prefer an option with affordable calls to Japan; exact plan/provider still to choose.",
+    "Keep Y!mobile roaming alive for Japanese SMS / authentication."
+  ],
+  "stays": [
+    {
+      "name": "Moxy Vienna Airport",
+      "dates": "Oct 15 → Oct 16",
+      "note": "1 night · already paid"
+    }
+  ],
+  "lounge": {
+    "title": "China Airlines Lounge A · TPE T1",
+    "note": "Economy + Dynasty member. Try 5,000-mile VIP Lounge Usage redemption at the counter; no reservation, capacity dependent. Lounge B believed closed."
+  },
+  "vault": "https://github.com/hanenashi/travault13"
+}
