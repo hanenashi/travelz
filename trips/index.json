@@ -4,7 +4,7 @@
       "id": "current",
       "label": "Current trip",
       "route": "Trip details are PIN-shielded",
-      "href": "trips/2026-czech/"
+      "href": "trips/current/"
     }
   ]
 }
