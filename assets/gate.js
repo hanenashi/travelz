@@ -5,44 +5,36 @@
   const form = document.getElementById('gate-form');
   const input = document.getElementById('gate-pin');
   const message = document.getElementById('gate-message');
-  const storageKey = 'travelz-unlocked-until';
+  const untilKey = 'travelz-unlocked-until';
+  const dataKeyKey = 'travelz-data-key';
 
   const hexToBytes = (hex) => {
     const out = new Uint8Array(hex.length / 2);
     for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
     return out;
   };
-
   const bytesToHex = (bytes) => Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
-  async function derive(pin) {
-    const material = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(pin),
-      'PBKDF2',
-      false,
-      ['deriveBits']
-    );
-    const bits = await crypto.subtle.deriveBits(
-      {
-        name: 'PBKDF2',
-        hash: 'SHA-256',
-        salt: hexToBytes(cfg.saltHex),
-        iterations: cfg.iterations || 250000
-      },
-      material,
-      256
-    );
+  async function deriveHex(pin, saltHex) {
+    const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt: hexToBytes(saltHex),
+      iterations: cfg.iterations || 250000
+    }, material, 256);
     return bytesToHex(new Uint8Array(bits));
   }
 
   function showApp() {
     gate.hidden = true;
     app.hidden = false;
+    window.dispatchEvent(new Event('travelz:unlocked'));
   }
 
   function lock() {
-    localStorage.removeItem(storageKey);
+    localStorage.removeItem(untilKey);
+    localStorage.removeItem(dataKeyKey);
     app.hidden = true;
     gate.hidden = false;
     if (input) {
@@ -51,11 +43,13 @@
     }
   }
 
-  if (!cfg.enabled || !cfg.saltHex || !cfg.verifierHex) {
+  const configured = cfg.enabled && cfg.authSaltHex && cfg.authVerifierHex && cfg.dataSaltHex;
+  if (!configured) {
     showApp();
   } else {
-    const unlockedUntil = Number(localStorage.getItem(storageKey) || 0);
-    if (Date.now() < unlockedUntil) showApp();
+    const unlockedUntil = Number(localStorage.getItem(untilKey) || 0);
+    const storedDataKey = localStorage.getItem(dataKeyKey);
+    if (Date.now() < unlockedUntil && storedDataKey) showApp();
   }
 
   form?.addEventListener('submit', async (event) => {
@@ -65,10 +59,12 @@
     if (!pin) return;
 
     try {
-      const verifier = await derive(pin);
-      if (verifier === cfg.verifierHex) {
+      const verifier = await deriveHex(pin, cfg.authSaltHex);
+      if (verifier === cfg.authVerifierHex) {
+        const dataKey = await deriveHex(pin, cfg.dataSaltHex);
         const hours = Number(cfg.rememberHours || 24);
-        localStorage.setItem(storageKey, String(Date.now() + hours * 60 * 60 * 1000));
+        localStorage.setItem(untilKey, String(Date.now() + hours * 60 * 60 * 1000));
+        localStorage.setItem(dataKeyKey, dataKey);
         input.value = '';
         showApp();
       } else {
