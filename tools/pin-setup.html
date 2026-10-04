@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Travelz PIN setup</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">local setup tool</p>
+      <h1>Travelz PIN setup</h1>
+      <p class="lede">Your PIN is processed only in this browser. Nothing is sent anywhere by this page.</p>
+    </section>
+
+    <section class="card wide">
+      <h3>Generate gate config</h3>
+      <p>Use a Travelz-only PIN or short passphrase. A longer value is harder to brute-force than a 4-digit PIN.</p>
+      <form id="setup-form" autocomplete="off">
+        <label for="pin">PIN / passphrase</label>
+        <input id="pin" class="pin-input" type="password" autocomplete="new-password" maxlength="64" placeholder="••••••">
+        <button class="primary" type="submit">generate</button>
+      </form>
+      <p id="status" class="muted" aria-live="polite"></p>
+      <textarea id="output" rows="10" readonly style="width:100%;margin-top:1rem;font-family:monospace"></textarea>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem">
+        <button id="copy" class="primary" type="button">copy config</button>
+        <a class="ghost" href="https://github.com/hanenashi/travelz/edit/main/assets/gate-config.js" rel="noreferrer">edit gate-config.js ↗</a>
+      </div>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const form = document.getElementById('setup-form');
+  const pin = document.getElementById('pin');
+  const output = document.getElementById('output');
+  const status = document.getElementById('status');
+  const copy = document.getElementById('copy');
+
+  const bytesToHex = bytes => Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  async function derive(value, salt, iterations) {
+    const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(value), 'PBKDF2', false, ['deriveBits']);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, material, 256));
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const value = pin.value;
+    if (!value) return;
+    status.textContent = 'deriving…';
+    const iterations = 250000;
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const verifier = await derive(value, salt, iterations);
+    output.value = `window.TRAVELZ_GATE = {\n  enabled: true,\n  authSaltHex: "${bytesToHex(salt)}",\n  authVerifierHex: "${bytesToHex(verifier)}",\n  iterations: ${iterations},\n  rememberHours: 24\n};\n`;
+    pin.value = '';
+    status.textContent = 'ready — copy this over assets/gate-config.js';
+  });
+
+  copy.addEventListener('click', async () => {
+    if (!output.value) return;
+    await navigator.clipboard.writeText(output.value);
+    status.textContent = 'copied';
+  });
+})();
+</script>
+</body>
+</html>
