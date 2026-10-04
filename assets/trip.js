@@ -1,26 +1,6 @@
 (() => {
-  const cfg = window.TRAVELZ_GATE || {};
   const content = document.getElementById('trip-content');
   const empty = document.getElementById('trip-empty');
-  const dataKeyKey = 'travelz-data-key';
-
-  const hexToBytes = (hex) => {
-    const out = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-    return out;
-  };
-
-  const base64ToBytes = (value) => Uint8Array.from(atob(value), c => c.charCodeAt(0));
-
-  async function decryptPayload(payload, keyHex) {
-    const key = await crypto.subtle.importKey('raw', hexToBytes(keyHex), { name: 'AES-GCM' }, false, ['decrypt']);
-    const plain = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: hexToBytes(payload.ivHex) },
-      key,
-      base64ToBytes(payload.ciphertextBase64)
-    );
-    return JSON.parse(new TextDecoder().decode(plain));
-  }
 
   const text = (id, value) => {
     const node = document.getElementById(id);
@@ -115,18 +95,13 @@
   }
 
   async function load() {
-    const keyHex = localStorage.getItem(dataKeyKey);
-    if (cfg.enabled && !keyHex) return;
-
     try {
-      const response = await fetch('trip.enc.json', { cache: 'no-store' });
+      const response = await fetch('trip.json', { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      if (!keyHex) throw new Error('No decryption key');
-      const data = await decryptPayload(payload, keyHex);
-      render(data);
+      render(await response.json());
     } catch (error) {
-      console.info('Travelz trip data is not configured yet.', error);
+      console.error(error);
+      empty.textContent = 'Trip data failed to load.';
       empty.hidden = false;
       content.hidden = true;
     }
