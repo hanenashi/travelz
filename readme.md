@@ -5,16 +5,20 @@ Small static travel hub for GitHub Pages.
 ## Shape
 
 - `index.html` — trip dashboard
-- `trips/current/` — current-trip frontend
-- `assets/` — shared UI, PIN gate, encrypted trip loader
+- `trips/<year>-<destination>/` — one frontend and data file per trip
+- `assets/` — shared UI and PIN gate
 - `sw.js` — offline fallback/cache
 - `travault13` — separate private repository for sensitive documents
 
 ## Privacy model
 
-The public repo contains only the shell and public-safe metadata. Current-trip detail is intended to live in an encrypted `trip.enc.json` payload. The PIN gate is convenience/privacy, not a replacement for the private vault. Passport scans, insurance PDFs, booking documents, account details and similar material must stay in the private repository.
+The public repo contains the trip pages and readable JSON data. The PIN gate is a visual curtain for the GitHub Pages interface; anyone can inspect the source files or request the JSON directly. Put only information acceptable to publish in this repo. Scans, PDFs, booking documents, account details, and similar files belong in the private `travault13` repository.
 
-The gate uses PBKDF2-SHA-256. A separate derived key is used to decrypt AES-GCM trip data in the browser. Unlock state is remembered locally for up to 24 hours and can be cleared with the lock button.
+The gate uses PBKDF2-SHA-256 to check the PIN. Unlock state is remembered locally for up to 24 hours and can be cleared with the lock button. It does not encrypt or access-control the public data.
+
+## Trip folders
+
+Use the same trip ID in both repositories, such as `trips/2026-czechia/`. Travelz keeps `index.html` and `trip.json` in that folder. The vault keeps a `README.md` and its PDFs or scans in the matching folder. The public trip JSON may link to private GitHub files; GitHub sign-in controls access to those files.
 
 ## GitHub Pages
 

@@ -1,10 +1,10 @@
 {
   "trips": [
     {
-      "id": "current",
+      "id": "2026-czechia",
       "label": "Current trip",
       "route": "Trip details are PIN-shielded",
-      "href": "trips/current/"
+      "href": "trips/2026-czechia/"
     }
   ]
 }

@@ -90,6 +90,18 @@
     const vault = document.getElementById('vault-link');
     if (vault && data.vault) vault.href = data.vault;
 
+    const documents = document.getElementById('documents');
+    documents.replaceChildren();
+    for (const item of data.documents || []) {
+      const li = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = item.href;
+      link.rel = 'noreferrer';
+      link.textContent = `${item.label} ↗`;
+      li.appendChild(link);
+      documents.appendChild(li);
+    }
+
     empty.hidden = true;
     content.hidden = false;
   }

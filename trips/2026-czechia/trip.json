@@ -73,5 +73,19 @@
     "title": "China Airlines Lounge A · TPE T1",
     "note": "Economy + Dynasty member. Try 5,000-mile VIP Lounge Usage redemption at the counter; no reservation, capacity dependent. Lounge B believed closed."
   },
-  "vault": "https://github.com/hanenashi/travault13"
+  "vault": "https://github.com/hanenashi/travault13/tree/main/trips/2026-czechia",
+  "documents": [
+    {
+      "label": "Flight e-ticket",
+      "href": "https://github.com/hanenashi/travault13/blob/main/trips/2026-czechia/flight-eticket.pdf"
+    },
+    {
+      "label": "Hotel receipt",
+      "href": "https://github.com/hanenashi/travault13/blob/main/trips/2026-czechia/hotel-receipt.pdf"
+    },
+    {
+      "label": "Travel insurance",
+      "href": "https://github.com/hanenashi/travault13/blob/main/trips/2026-czechia/travel-insurance.pdf"
+    }
+  ]
 }

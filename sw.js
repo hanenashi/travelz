@@ -1,4 +1,4 @@
-const CACHE = 'travelz-v2';
+const CACHE = 'travelz-v3';
 const CORE = [
   './',
   './index.html',
@@ -8,8 +8,8 @@ const CORE = [
   './assets/home.js',
   './assets/trip.js',
   './trips/index.json',
-  './trips/current/',
-  './trips/current/trip.json'
+  './trips/2026-czechia/',
+  './trips/2026-czechia/trip.json'
 ];
 
 self.addEventListener('install', event => {
