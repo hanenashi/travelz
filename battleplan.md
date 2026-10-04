@@ -123,8 +123,9 @@ temporary fixture repos and files; they do not open real documents.
   tap brought Termux forward and opened the flight PDF in the installed viewer.
 - A Termux `open` call also opened the same PDF directly. Document contents
   were not copied into app storage or logs.
-- Full radio-off testing has not been run because it would interrupt the
-  remote ADB/SSH session. The read and open paths use local clones and files.
+- The user tested on the Pixel with the antenna off and reported that the
+  offline app and document flow worked. This was a user-run check; the remote
+  ADB/SSH session could not observe the phone while its radios were off.
 
 Before treating a future version as complete, repeat `lintDebug`,
 `assembleDebug`, helper tests and the Pixel smoke check. When an image is
